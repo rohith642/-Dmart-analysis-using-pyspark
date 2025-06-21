@@ -1,0 +1,59 @@
+#Load data
+product_df = spark.table("workspace.default.product")
+sales_df = spark.table("workspace.default.sales")
+customer_df = spark.table("workspace.default.customer")
+#Check data
+%python
+product_df.show()
+sales_df.show()
+customer_df.show()
+# Step 3: Clean column names (replace spaces with underscores)
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, sum, avg, count,countDistinct,desc
+def clean_columns(df):
+ return df.select([col(c).alias(c.replace(" ", "_")) for c in df.columns])
+customer_df = clean_columns(customer_df)
+product_df = clean_columns(product_df)
+sales_df = clean_columns(sales_df)
+# Step 4: Type casting for numerical fields
+from pyspark.sql.types import FloatType, IntegerType
+sales_df = sales_df.withColumn("Sales", col("Sales").cast(FloatType())) \
+ .withColumn("Quantity", col("Quantity").cast(IntegerType())) \
+ .withColumn("Discount", col("Discount").cast(FloatType())) \
+ .withColumn("Profit", col("Profit").cast(FloatType()))
+customer_df = customer_df.withColumn("Age", col("Age").cast(IntegerType()))
+# Step 5: Join DataFrames
+sales_product_df = sales_df.join(product_df, on="Product_ID", how="inner")
+full_df = sales_product_df.join(customer_df, on="Customer_ID", how="inner")
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, sum, avg, count, countDistinct, desc
+# Step 6: Run 10 Analytical Queries
+# 1. Total sales for each product category
+full_df.groupBy("Category").agg(sum("Sales").alias("Total_Sales")) \
+ .orderBy(desc("Total_Sales")).show()
+# 2. Customer with the highest number of purchases
+full_df.groupBy("Customer_ID").agg(count("*").alias("Purchase_Count")) \
+ .orderBy(desc("Purchase_Count")).show(1)
+# 3. Average discount given on sales across all products
+full_df.select(avg("Discount").alias("Average_Discount")).show()
+# 4. Unique products sold in each region
+full_df.groupBy("Region").agg(countDistinct("Product_ID").alias("Unique_Products_Sold")) \
+ .orderBy("Region").show()
+# 5. Total profit generated in each state
+full_df.groupBy("State").agg(sum("Profit").alias("Total_Profit")) \
+ .orderBy(desc("Total_Profit")).show()
+# 6. Product sub-category with the highest sales
+full_df.groupBy("Sub_Category").agg(sum("Sales").alias("Total_Sales")) \
+ .orderBy(desc("Total_Sales")).show(1)
+# 7. Average age of customers in each segment
+full_df.groupBy("Segment").agg(avg("Age").alias("Average_Age")) \
+ .orderBy("Segment").show()
+# 8. Orders shipped in each shipping mode
+full_df.groupBy("Ship_Mode").agg(count("*").alias("Orders_Shipped")) \
+ .orderBy(desc("Orders_Shipped")).show()
+# 9. Total quantity of products sold in each city
+full_df.groupBy("City").agg(sum("Quantity").alias("Total_Quantity_Sold")) \
+ .orderBy(desc("Total_Quantity_Sold")).show()
+# 10. Customer segment with the highest profit margin
+full_df.groupBy("Segment").agg(sum("Profit").alias("Total_Profit")) \
+ .orderBy(desc("Total_Profit")).show(1)
